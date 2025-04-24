@@ -16,5 +16,9 @@ The open the web page http://localhost:8080/guacamole/
 
 The default login password is *guacadmin* *guacadmin*
 
+Change your administrator password here (it is stored in the postgresql database)
+
+http://localhost:8080/guacamole/#/settings/preferences
+
 
 
