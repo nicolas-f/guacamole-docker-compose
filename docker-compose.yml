@@ -1,0 +1,87 @@
+# Modified version of https://github.com/boschkundendienst/guacamole-docker-compose
+# this version setup the database in a service instead of an external bash script
+# create a .env file in the same folder with the following content:
+# POSTGRES_PASSWORD=EDITME_DATABASE_PASSWORD
+volumes:
+  postgres-data:
+    driver: local    
+  init-postgres-script:
+    driver: local    
+  guacd-drive:
+    driver: local  
+  guacd-record:
+    driver: local  
+networks:
+  guacnetwork_compose:
+    driver: bridge
+# services
+services:
+  # guacd
+  guacd:
+    container_name: guacd_compose
+    image: guacamole/guacd
+    networks:
+      - guacnetwork_compose
+    restart: always
+    volumes:
+    - guacd-drive:/drive:rw
+    - guacd-record:/record:rw
+  # setup db data
+  setup:
+    image: guacamole/guacamole
+    volumes:
+      - init-postgres-script:/init
+    user: "0"
+    command: >
+      bash -c '        
+        if [ ! -f /init/initdb.sql ]; then
+          /opt/guacamole/bin/initdb.sh --postgresql > /init/initdb.sql
+        fi;
+      '
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /init/initdb.sql ]"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+  # postgres
+  postgres:
+    container_name: postgres_guacamole_compose
+    environment:
+      PGDATA: /var/lib/postgresql/data/guacamole
+      POSTGRES_DB: guacamole_db
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: guacamole_user
+    image: postgres:15.2-alpine
+    depends_on:
+    - setup
+    networks:
+      - guacnetwork_compose
+    restart: always
+    volumes:
+    - init-postgres-script:/docker-entrypoint-initdb.d:z
+    - postgres-data:/var/lib/postgresql/data:Z
+ 
+  # guacamole
+  guacamole:
+    container_name: guacamole_compose
+    group_add:
+      - "1000"
+    depends_on:
+    - guacd
+    - postgres
+    environment:
+      GUACD_HOSTNAME: guacd
+      POSTGRES_DATABASE: guacamole_db
+      POSTGRESQL_HOSTNAME: postgres
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRESQL_USER: guacamole_user
+      RECORDING_SEARCH_PATH: /record
+    image: guacamole/guacamole
+    networks:
+      - guacnetwork_compose
+    volumes:
+      - guacd-record:/record:rw
+    ports:
+      - 8080:8080/tcp
+    restart: always
+    
