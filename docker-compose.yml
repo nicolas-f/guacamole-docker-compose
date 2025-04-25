@@ -76,6 +76,7 @@ services:
       POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRESQL_USER: guacamole_user
       RECORDING_SEARCH_PATH: /record
+      TOTP_ENABLED: true
     image: guacamole/guacamole
     networks:
       - guacnetwork_compose
